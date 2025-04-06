@@ -18,4 +18,9 @@ jobs:
       - id: set_greeting
         run: echo "greeting=Hello from Job A" >> $GITHUB_OUTPUT
 
-  
+  job_b:
+    needs: job_a
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ needs.job_a.outputs.greeting }}"
+
