@@ -2,54 +2,77 @@ name: 'Terraform'
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
   pull_request:
 
 permissions:
   contents: read
   id-token: 'write'
-
 jobs:
-  terraform:
-    name: 'Terraform'
+  job_a:
     runs-on: ubuntu-latest
-
-
-    defaults:
-      run:
-        shell: bash
-
+    outputs: # declare outputs from this job
+      greeting: ${{ steps.set_greeting.outputs.greeting }}
     steps:
-    # Checkout the repository to the GitHub Actions runner
-    - name: Checkout
-      uses: actions/checkout@v3
+      - id: set_greeting
+        run: echo "greeting=Hello from Job A" >> $GITHUB_OUTPUT
 
-    - id: auth
-      uses: google-github-actions/auth@v2.0.0  
-      with:
-        workload_identity_provider: 'projects/311967109541/locations/global/workloadIdentityPools/github-demo-pool/providers/github'
-        service_account: 'github-actions-demo@euphoric-fusion-454304-v6.iam.gserviceaccount.com'
+
+
+
+
+# name: 'Terraform'
+
+# on:
+#   push:
+#     branches: [ "main" ]
+#   pull_request:
+
+# permissions:
+#   contents: read
+#   id-token: 'write'
+
+# jobs:
+#   terraform:
+#     name: 'Terraform'
+#     runs-on: ubuntu-latest
+
+
+#     defaults:
+#       run:
+#         shell: bash
+
+#     steps:
+#     # Checkout the repository to the GitHub Actions runner
+#     - name: Checkout
+#       uses: actions/checkout@v3
+
+#     - id: auth
+#       uses: google-github-actions/auth@v2.0.0  
+#       with:
+#         workload_identity_provider: 'projects/311967109541/locations/global/workloadIdentityPools/github-demo-pool/providers/github'
+#         service_account: 'github-actions-demo@euphoric-fusion-454304-v6.iam.gserviceaccount.com'
 
 
           
-    # - name: Setup Terraform
-    #   uses: hashicorp/setup-terraform@v1
-    #   with:
-    #     cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-    - name: Install Terraform
-      uses: hashicorp/setup-terraform@v2
-      with:
-        terraform_version: 1.5.0
+#     # - name: Setup Terraform
+#     #   uses: hashicorp/setup-terraform@v1
+#     #   with:
+#     #     cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+#     - name: Install Terraform
+#       uses: hashicorp/setup-terraform@v2
+#       with:
+#         terraform_version: 1.5.0
 
-    - name: Terraform Init
-      run: terraform init
-
-
-    # Generates an execution plan for Terraform
-    - name: Terraform Plan
-      run: terraform plan -input=false
+#     - name: Terraform Init
+#       run: terraform init
 
 
-    - name: Terraform Apply
-      run: terraform apply -auto-approve -input=false
+#     # Generates an execution plan for Terraform
+#     - name: Terraform Plan
+#       run: terraform plan -input=false
+
+
+#     - name: Terraform Apply
+#       run: terraform apply -auto-approve -input=false
 
