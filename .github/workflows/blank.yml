@@ -1,52 +1,66 @@
-name: 'Terraform'
+name: Server Management Pipeline
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-
-permissions:
-  contents: read
-  id-token: 'write'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select Environment"
+        required: true
+        type: choice
+        options:
+          - Production
+          - Non-Prod
+      server_name:
+        description: "Enter Server Name"
+        required: true
+      action_type:
+        description: "Select Action"
+        required: true
+        type: choice
+        options:
+          - Stop
+          - Start
+          - Check
+      chg_number:
+        description: "Enter CHG Number"
+        required: true
 
 jobs:
-  job_a:
+  validate-server:
+    runs-on: ubuntu-latest
+    outputs:
+      valid: ${{ steps.validate.outputs.valid }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Server via API
+        id: validate
+        run: |
+          echo "Calling validation API..."
+          VALID=$(curl -s -X GET "https://your-api.com/validate?env=${{ github.event.inputs.environment }}&server=${{ github.event.inputs.server_name }}" | jq -r '.valid')
+
+          echo "Validation Result: $VALID"
+
+          if [[ "$VALID" == "true" ]]; then
+            echo "::set-output name=valid::true"
+          else
+            echo "::set-output name=valid::false"
+            exit 1
+          fi
+
+  approval:
+    needs: validate-server
+    if: needs.validate-server.outputs.valid == 'true'
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Hello, world!" > message.txt
-      - uses: actions/upload-artifact@v4
+      - name: Manual Approval from Approver Group
+        uses: trstringer/manual-approval@v1
         with:
-          name: my-message
-          path: message.txt
-
-
-  job_b:
-    needs: job_a
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: my-message
-      - run: cat message.txt
-      - name: Super-linter
-        uses: super-linter/super-linter@v7.3.0 # x-release-please-version
-        env:
-          # To report GitHub Actions status checks
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
-# jobs:
-#   job_a:
-#     runs-on: ubuntu-latest
-#     outputs: # declare outputs from this job
-#       greeting: ${{ steps.set_greeting.outputs.greeting }}
-#     steps:
-#       - id: set_greeting
-#         run: echo "greeting=Hello from Job A" >> $GITHUB_OUTPUT
-
-#   job_b:
-#     needs: job_a
-#     runs-on: ubuntu-latest
-#     steps:
-#       - run: echo "${{ needs.job_a.outputs.greeting }}"
-
+          approvers: approver-group  # Replace with your actual GitHub group name
+          minimum-approvals: 1
+          issue-title: "Approval needed: ${{ github.event.inputs.action_type }} on ${{ github.event.inputs.server_name }}"
+          issue-body: |
+            **Environment**: ${{ github.event.inputs.environment }}
+            **Server**: ${{ github.event.inputs.server_name }}
+            **CHG**: ${{ github.event.inputs.chg_number }}
