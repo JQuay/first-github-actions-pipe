@@ -35,3 +35,5 @@ resource "google_compute_instance" "vm_instance" {
     ssh-keys = "your-username:ssh-rsa YOUR_SSH_PUBLIC_KEY"
   }
 }
+
+# added a comment 
