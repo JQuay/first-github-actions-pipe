@@ -3,7 +3,7 @@ provider "google" {
   region      = "us-central1"
 }
 
-
+############
 terraform {
   required_version = ">= 0.12"
    backend "gcs" {
