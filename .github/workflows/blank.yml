@@ -1,66 +1,97 @@
-name: Server Management Pipeline
+name: Terraform GCP VM Automation
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
-    inputs:
-      environment:
-        description: "Select Environment"
-        required: true
-        type: choice
-        options:
-          - Production
-          - Non-Prod
-      server_name:
-        description: "Enter Server Name"
-        required: true
-      action_type:
-        description: "Select Action"
-        required: true
-        type: choice
-        options:
-          - Stop
-          - Start
-          - Check
-      chg_number:
-        description: "Enter CHG Number"
-        required: true
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
-  validate-server:
+  terraform:
+    name: Terraform Plan
     runs-on: ubuntu-latest
-    outputs:
-      valid: ${{ steps.validate.outputs.valid }}
+
+    env:
+      TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate Server via API
-        id: validate
-        run: |
-          echo "Calling validation API..."
-          VALID=$(curl -s -X GET "https://your-api.com/validate?env=${{ github.event.inputs.environment }}&server=${{ github.event.inputs.server_name }}" | jq -r '.valid')
-
-          echo "Validation Result: $VALID"
-
-          if [[ "$VALID" == "true" ]]; then
-            echo "::set-output name=valid::true"
-          else
-            echo "::set-output name=valid::false"
-            exit 1
-          fi
-
-  approval:
-    needs: validate-server
-    if: needs.validate-server.outputs.valid == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Manual Approval from Approver Group
-        uses: trstringer/manual-approval@v1
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          approvers: approver-group  # Replace with your actual GitHub group name
-          minimum-approvals: 1
-          issue-title: "Approval needed: ${{ github.event.inputs.action_type }} on ${{ github.event.inputs.server_name }}"
-          issue-body: |
-            **Environment**: ${{ github.event.inputs.environment }}
-            **Server**: ${{ github.event.inputs.server_name }}
-            **CHG**: ${{ github.event.inputs.chg_number }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      # 👉 Run Terraform plan and show detailed diff in GitHub Actions log
+      - name: Terraform Plan (show in logs)
+        id: plan
+        run: |
+          echo "Running terraform plan..."
+          terraform plan -no-color
+          terraform plan -out=tfplan -no-color > plan_output.txt
+          echo "---------------- Terraform Plan Summary ----------------"
+          cat plan_output.txt
+
+      # Optional: upload the plan binary for use in 'apply' job
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: tfplan
+
+  apply:
+    name: Terraform Apply (Requires Manual Approval)
+    needs: terraform
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    environment:
+      name: production
+      url: https://console.cloud.google.com/compute
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: .
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
