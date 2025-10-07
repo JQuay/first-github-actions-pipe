@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
-    # 🚦 Enforce approval in GitHub UI
+    # 🚦 Enforce approval in GitHub U
     environment:
       name: production
       url: https://console.cloud.google.com/compute
@@ -94,6 +94,6 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-
+        
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
