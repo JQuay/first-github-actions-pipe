@@ -5,7 +5,6 @@ terraform {
       version = "~> 6.0"
     }
   }
-
   required_version = ">= 1.5.0"
 }
 
@@ -15,14 +14,12 @@ provider "google" {
   zone    = "us-central1-a"
 }
 
-# Variables
 variable "project_id" {}
 variable "ssh_user" {
   default = "terraform-user"
 }
-variable "public_key_path" {}
+variable "ssh_public_key" {}
 
-# VM resource
 resource "google_compute_instance" "vm_instance" {
   name         = "tf-demo-vm"
   machine_type = "e2-micro"
@@ -36,17 +33,22 @@ resource "google_compute_instance" "vm_instance" {
 
   network_interface {
     network = "default"
-    access_config {} # assigns ephemeral public IP
+    access_config {} # ephemeral public IP
   }
 
-  metadata = {
-    ssh-keys = "${var.ssh_user}:${file(var.public_key_path)}"
-  }
+  # Inject SSH key via startup script
+  metadata_startup_script = <<-EOT
+    #!/bin/bash
+    useradd -m ${var.ssh_user} || true
+    mkdir -p /home/${var.ssh_user}/.ssh
+    echo "${var.ssh_public_key}" >> /home/${var.ssh_user}/.ssh/authorized_keys
+    chown -R ${var.ssh_user}:${var.ssh_user} /home/${var.ssh_user}/.ssh
+    chmod 600 /home/${var.ssh_user}/.ssh/authorized_keys
+  EOT
 
   tags = ["terraform", "demo"]
 }
 
-# Outputs
 output "instance_ip" {
   value = google_compute_instance.vm_instance.network_interface[0].access_config[0].nat_ip
 }
