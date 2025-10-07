@@ -11,24 +11,22 @@ terraform {
 
 provider "google" {
   project = var.project_id
-  region  = var.region
-  zone    = var.zone
+  region  = "us-central1"
+  zone    = "us-central1-a"
 }
 
-# Variables (inline)
+# Variables
 variable "project_id" {}
-variable "region" { default = "us-central1" }
-variable "zone" { default = "us-central1-a" }
-variable "vm_name" { default = "simple-vm" }
-variable "machine_type" { default = "e2-micro" }
-variable "ssh_user" { default = "terraform-user" }
-variable "public_key_path" { default = "~/.ssh/id_rsa.pub" }
+variable "ssh_user" {
+  default = "terraform-user"
+}
+variable "public_key_path" {}
 
 # VM resource
-resource "google_compute_instance" "vm" {
-  name         = var.vm_name
-  machine_type = var.machine_type
-  zone         = var.zone
+resource "google_compute_instance" "vm_instance" {
+  name         = "tf-demo-vm"
+  machine_type = "e2-micro"
+  zone         = "us-central1-a"
 
   boot_disk {
     initialize_params {
@@ -38,21 +36,21 @@ resource "google_compute_instance" "vm" {
 
   network_interface {
     network = "default"
-    access_config {} # ephemeral public IP
+    access_config {} # assigns ephemeral public IP
   }
 
   metadata = {
     ssh-keys = "${var.ssh_user}:${file(var.public_key_path)}"
   }
 
-  tags = ["terraform-simple"]
+  tags = ["terraform", "demo"]
 }
 
 # Outputs
-output "public_ip" {
-  value = google_compute_instance.vm.network_interface[0].access_config[0].nat_ip
+output "instance_ip" {
+  value = google_compute_instance.vm_instance.network_interface[0].access_config[0].nat_ip
 }
 
 output "ssh_command" {
-  value = "ssh ${var.ssh_user}@${google_compute_instance.vm.network_interface[0].access_config[0].nat_ip}"
+  value = "ssh ${var.ssh_user}@${google_compute_instance.vm_instance.network_interface[0].access_config[0].nat_ip}"
 }
