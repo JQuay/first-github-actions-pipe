@@ -1,13 +1,13 @@
 name: Terraform GCP VM Automation
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
   pull_request:
     branches:
       - main
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -22,47 +22,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 🔐 Authenticate using GCP service account
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
-      # 🗝 Write SSH public key to folder inside repo so Terraform can read it
-      - name: Write SSH public key
-        run: |
-          mkdir -p tf_keys
-          echo "${{ secrets.SSH_PUBLIC_KEY }}" > tf_keys/terraform_key.pub
-
-      # 🌱 Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.5
 
-      # 🔧 Initialize Terraform
       - name: Terraform Init
         run: terraform init
 
-      # ✅ Validate Terraform config
       - name: Terraform Validate
         run: terraform validate
 
-      # 🧾 Terraform Plan and show in logs
-      - name: Terraform Plan
+      - name: Terraform Plan (show in logs)
         run: |
           echo "Running terraform plan..."
           terraform plan \
             -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
-            -var="public_key_path=tf_keys/terraform_key.pub" \
+            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}" \
+            -var="ssh_user=terraform-user" \
             -no-color -out=tfplan | tee plan_output.txt
-
           echo "-----------------------------------------------"
           echo "Terraform plan completed. Summary below:"
           echo "-----------------------------------------------"
           cat plan_output.txt
 
-      # 📦 Upload plan artifact for apply job
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -75,7 +63,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
-    # ⛔ Require approval in GitHub UI
     environment:
       name: production
       url: https://console.cloud.google.com/compute
