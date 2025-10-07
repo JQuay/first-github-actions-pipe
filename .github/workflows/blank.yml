@@ -25,11 +25,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 🔐 Authenticate using Service Account JSON Key
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -42,17 +42,19 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      # 👉 Run Terraform plan and show detailed diff in GitHub Actions log
+      # 🧾 Show Terraform plan in logs
       - name: Terraform Plan (show in logs)
         id: plan
         run: |
           echo "Running terraform plan..."
-          terraform plan -no-color
-          terraform plan -out=tfplan -no-color > plan_output.txt
-          echo "---------------- Terraform Plan Summary ----------------"
+          terraform plan -no-color -out=tfplan | tee plan_output.txt
+
+          echo "-----------------------------------------------"
+          echo "Terraform plan completed. Summary below:"
+          echo "-----------------------------------------------"
           cat plan_output.txt
 
-      # Optional: upload the plan binary for use in 'apply' job
+      # 📦 Upload plan file for apply job
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -60,11 +62,12 @@ jobs:
           path: tfplan
 
   apply:
-    name: Terraform Apply (Requires Manual Approval)
+    name: Terraform Apply (Manual Approval)
     needs: terraform
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
+    # 🚦 Enforce approval in GitHub UI
     environment:
       name: production
       url: https://console.cloud.google.com/compute
@@ -82,8 +85,7 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
