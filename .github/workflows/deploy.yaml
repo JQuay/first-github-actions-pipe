@@ -1,103 +1,31 @@
-name: Conditional env variable
+name: jwt-vault-test
 
-# on: workflow_dispatch
 on:
   push:
-    branches: [ "main" ]
-
-env:
-  DAY_OF_WEEK: Monday
+    branches: [ "test" ]
+  workflow_dispatch:
 
 jobs:
-  greeting_job:
-    runs-on: ubuntu-latest
-    env:
-      Greeting: Hello
+  build:
+    runs-on: self-hosted
+
     steps:
-      - name: "Say Hello Mona it's Monday"
-        if: ${{ env.DAY_OF_WEEK == 'Monday' }}
-        run: echo "$Greeting $First_Name. Today is $DAY_OF_WEEK!"
-        env:
-          First_Name: Mona
+      - name: Generate GitHub token of GitHub Application
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.PRIVATE_KEY }}
+          owner: your-org-or-username   # 👈 replace with your org or profile name
+          repositories: vault-k8s-jwt-auth
 
+      - name: Checkout current repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          fetch-depth: 0
 
-
-
-# name: 'Terraform'
-
-# on:
-#   push:
-#     branches: [ "master" ]
-#   pull_request:
-
-# permissions:
-#   contents: read
-#   id-token: 'write'
-# jobs:
-#   job_a:
-#     runs-on: ubuntu-latest
-#     outputs: # declare outputs from this job
-#       greeting: ${{ steps.set_greeting.outputs.greeting }}
-#     steps:
-#       - id: set_greeting
-#         run: echo "greeting=Hello from Job A" >> $GITHUB_OUTPUT
-
-
-
-
-
-# name: 'Terraform'
-
-# on:
-#   push:
-#     branches: [ "main" ]
-#   pull_request:
-
-# permissions:
-#   contents: read
-#   id-token: 'write'
-
-# jobs:
-#   terraform:
-#     name: 'Terraform'
-#     runs-on: ubuntu-latest
-
-
-#     defaults:
-#       run:
-#         shell: bash
-
-#     steps:
-#     # Checkout the repository to the GitHub Actions runner
-#     - name: Checkout
-#       uses: actions/checkout@v3
-
-#     - id: auth
-#       uses: google-github-actions/auth@v2.0.0  
-#       with:
-#         workload_identity_provider: 'projects/311967109541/locations/global/workloadIdentityPools/github-demo-pool/providers/github'
-#         service_account: 'github-actions-demo@euphoric-fusion-454304-v6.iam.gserviceaccount.com'
-
-
-          
-#     # - name: Setup Terraform
-#     #   uses: hashicorp/setup-terraform@v1
-#     #   with:
-#     #     cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-#     - name: Install Terraform
-#       uses: hashicorp/setup-terraform@v2
-#       with:
-#         terraform_version: 1.5.0
-
-#     - name: Terraform Init
-#       run: terraform init
-
-
-#     # Generates an execution plan for Terraform
-#     - name: Terraform Plan
-#       run: terraform plan -input=false
-
-
-#     - name: Terraform Apply
-#       run: terraform apply -auto-approve -input=false
-
+      - name: Verify branch and repo
+        run: |
+          echo "Current branch: $(git branch --show-current)"
+          echo "Repository URL: $(git remote get-url origin)"
