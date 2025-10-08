@@ -1,5 +1,4 @@
 name: Terraform GCP VM Automation
-
 on:
   workflow_dispatch:
   push:
@@ -8,7 +7,7 @@ on:
   pull_request:
     branches:
       - main
-
+      
 permissions:
   contents: read
   id-token: write
