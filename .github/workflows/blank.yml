@@ -1,92 +1,92 @@
-name: Terraform GCP VM Automation
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+# name: Terraform GCP VM Automation
+# on:
+#   workflow_dispatch:
+#   push:
+#     branches:
+#       - main
+#   pull_request:
+#     branches:
+#       - main
       
-permissions:
-  contents: read
-  id-token: write
+# permissions:
+#   contents: read
+#   id-token: write
 
-jobs:
-  terraform:
-    name: Terraform Plan
-    runs-on: ubuntu-latest
+# jobs:
+#   terraform:
+#     name: Terraform Plan
+#     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+#       - name: Authenticate to Google Cloud
+#         uses: google-github-actions/auth@v2
+#         with:
+#           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.9.5
+#       - name: Setup Terraform
+#         uses: hashicorp/setup-terraform@v3
+#         with:
+#           terraform_version: 1.9.5
 
-      - name: Terraform Init
-        run: terraform init
+#       - name: Terraform Init
+#         run: terraform init
 
-      - name: Terraform Validate
-        run: terraform validate
+#       - name: Terraform Validate
+#         run: terraform validate
 
-      - name: Terraform Plan (show in logs)
-        run: |
-          echo "Running terraform plan..."
-          terraform plan \
-            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
-            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}" \
-            -var="ssh_user=terraform-user" \
-            -no-color -out=tfplan | tee plan_output.txt
-          echo "-----------------------------------------------"
-          echo "Terraform plan completed. Summary below:"
-          echo "-----------------------------------------------"
-          cat plan_output.txt
+#       - name: Terraform Plan (show in logs)
+#         run: |
+#           echo "Running terraform plan..."
+#           terraform plan \
+#             -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+#             -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}" \
+#             -var="ssh_user=terraform-user" \
+#             -no-color -out=tfplan | tee plan_output.txt
+#           echo "-----------------------------------------------"
+#           echo "Terraform plan completed. Summary below:"
+#           echo "-----------------------------------------------"
+#           cat plan_output.txt
 
-      - name: Upload Plan Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-plan
-          path: tfplan
+#       - name: Upload Plan Artifact
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: terraform-plan
+#           path: tfplan
 
-  apply:
-    name: Terraform Apply (Manual Approval)
-    needs: terraform
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+#   apply:
+#     name: Terraform Apply (Manual Approval)
+#     needs: terraform
+#     runs-on: ubuntu-latest
+#     if: github.ref == 'refs/heads/main'
 
-    environment:
-      name: production
-      url: https://console.cloud.google.com/compute
+#     environment:
+#       name: production
+#       url: https://console.cloud.google.com/compute
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
 
-      - name: Download Plan Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-plan
-          path: .
+#       - name: Download Plan Artifact
+#         uses: actions/download-artifact@v4
+#         with:
+#           name: terraform-plan
+#           path: .
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+#       - name: Authenticate to Google Cloud
+#         uses: google-github-actions/auth@v2
+#         with:
+#           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.9.5
+#       - name: Setup Terraform
+#         uses: hashicorp/setup-terraform@v3
+#         with:
+#           terraform_version: 1.9.5
 
-      - name: Terraform Init
-        run: terraform init
-      # - name: Terraform Apply
-      #   run: terraform apply -auto-approve tfplan
+#       - name: Terraform Init
+#         run: terraform init
+#       # - name: Terraform Apply
+#       #   run: terraform apply -auto-approve tfplan
