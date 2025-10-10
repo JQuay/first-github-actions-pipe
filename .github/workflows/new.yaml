@@ -1,0 +1,36 @@
+name: Terraform Plan and Apply
+
+on:
+  workflow_dispatch:
+
+jobs:
+  terraform:
+    runs-on: self-hosted
+
+    env:
+      APPROVED: "false"  # change to "true" to simulate approval
+      APPROVER: "joseph"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Wait for Approval (manual step)
+        run: |
+          echo "Waiting for approval..."
+          sleep 30
+          echo "Approval variable is currently: $APPROVED"
+          if [ "$APPROVED" != "true" ]; then
+            echo "❌ Not approved. Exiting..."
+            exit 1
+          fi
+          echo "✅ Approved by $APPROVER"
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
