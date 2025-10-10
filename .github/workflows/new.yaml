@@ -1,36 +1,91 @@
-name: Terraform Plan and Apply
+name: Terraform GCP VM Automation
 
 on:
   workflow_dispatch:
+
+env:
+  PROJECT_ID: "your-gcp-project-id"
+  TF_VAR_project_id: "your-gcp-project-id"
+  REQUIRE_APPROVAL: "true"     # <--- Toggle to "false" to skip approval for testing
 
 jobs:
   terraform:
     runs-on: self-hosted
 
-    env:
-      APPROVED: "false"  # change to "true" to simulate approval
-      APPROVER: "joseph"
-
     steps:
-      - name: Checkout code
+      # ---------------------------
+      # Step 1: Checkout code
+      # ---------------------------
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan
-
-      - name: Wait for Approval (manual step)
+      # ---------------------------
+      # Step 2: Download current state file from API
+      # ---------------------------
+      - name: Download current state file from API
         run: |
-          echo "Waiting for approval..."
-          sleep 30
-          echo "Approval variable is currently: $APPROVED"
-          if [ "$APPROVED" != "true" ]; then
-            echo "❌ Not approved. Exiting..."
-            exit 1
-          fi
-          echo "✅ Approved by $APPROVER"
+          echo "Downloading latest state file..."
+          curl -s -o terraform.tfstate https://your-api.example.com/get-state
+          ls -l terraform.tfstate || echo "No previous state file found."
 
+      # ---------------------------
+      # Step 3: Setup Terraform
+      # ---------------------------
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.7
+
+      # ---------------------------
+      # Step 4: Initialize Terraform
+      # ---------------------------
+      - name: Terraform Init
+        run: terraform init -no-color
+
+      # ---------------------------
+      # Step 5: Run Terraform Plan (show only plan output)
+      # ---------------------------
+      - name: Terraform Plan
+        run: |
+          echo "Running Terraform plan..."
+          terraform plan -no-color -out=tfplan 2>&1 | tee plan.log
+          echo "-----------------------------------------------"
+          echo "Terraform Plan Summary:"
+          echo "-----------------------------------------------"
+          grep -A50 -E 'Plan:' plan.log || tail -n 50 plan.log
+
+      # ---------------------------
+      # Step 6: Manual Approval (optional)
+      # ---------------------------
+      - name: Wait for approval before apply
+        if: env.REQUIRE_APPROVAL == 'true'
+        uses: trstringer/manual-approval@v1
+        with:
+          approvers: "your-github-username"
+          timeout-minutes: 10
+          issue-title: "Approval required before Terraform Apply"
+          issue-body: "Approve this issue to proceed with apply."
+
+      # ---------------------------
+      # Step 7: Apply Terraform
+      # ---------------------------
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
+
+      # ---------------------------
+      # Step 8: Backup and Upload State File
+      # ---------------------------
+      - name: Backup and Upload State File
+        run: |
+          TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+          BACKUP_FILE="terraform_state_${TIMESTAMP}.tfstate"
+          
+          echo "Backing up current state file..."
+          cp terraform.tfstate "${BACKUP_FILE}"
+
+          echo "Uploading backup to API..."
+          curl -X POST -F "file=@${BACKUP_FILE}" https://your-api.example.com/upload-backup
+
+          echo "Uploading new statefile..."
+          curl -X POST -F "file=@terraform.tfstate" https://your-api.example.com/upload-state
+
