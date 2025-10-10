@@ -1,31 +1,31 @@
-name: jwt-vault-test
+# name: jwt-vault-test
 
-on:
-  push:
-    branches: [ "test" ]
-  workflow_dispatch:
+# on:
+#   push:
+#     branches: [ "test" ]
+#   workflow_dispatch:
 
-jobs:
-  build:
-    runs-on: self-hosted
+# jobs:
+#   build:
+#     runs-on: self-hosted
 
-    steps:
-      - name: Generate GitHub token of GitHub Application
-        id: generate_token
-        uses: actions/create-github-app-token@v1
-        with:
-          app_id: ${{ secrets.APP_ID }}
-          private_key: ${{ secrets.PRIVATE_KEY }}
-          owner: your-org-or-username   # 👈 replace with your org or profile name
-          repositories: vault-k8s-jwt-auth
+#     steps:
+#       - name: Generate GitHub token of GitHub Application
+#         id: generate_token
+#         uses: actions/create-github-app-token@v1
+#         with:
+#           app_id: ${{ secrets.APP_ID }}
+#           private_key: ${{ secrets.PRIVATE_KEY }}
+#           owner: your-org-or-username   # 👈 replace with your org or profile name
+#           repositories: vault-k8s-jwt-auth
 
-      - name: Checkout current repo
-        uses: actions/checkout@v4
-        with:
-          token: ${{ steps.generate_token.outputs.token }}
-          fetch-depth: 0
+#       - name: Checkout current repo
+#         uses: actions/checkout@v4
+#         with:
+#           token: ${{ steps.generate_token.outputs.token }}
+#           fetch-depth: 0
 
-      - name: Verify branch and repo
-        run: |
-          echo "Current branch: $(git branch --show-current)"
-          echo "Repository URL: $(git remote get-url origin)"
+#       - name: Verify branch and repo
+#         run: |
+#           echo "Current branch: $(git branch --show-current)"
+#           echo "Repository URL: $(git remote get-url origin)"
